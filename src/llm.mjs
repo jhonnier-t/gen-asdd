@@ -56,6 +56,10 @@ function sanitizeErrorDetailForDisplay(detail) {
   return String(detail).replace(/azureml:\/\/registries\/[^\s"']+/g, '[provider-model-id]')
 }
 
+function isAccountTypeUnsupportedMessage(detail) {
+  return String(detail).toLowerCase().includes('account type is not currently supported')
+}
+
 function toPublicModelName(modelId) {
   const parsed = parseAzureModelId(modelId)
   if (parsed) return parsed.name
@@ -207,7 +211,13 @@ function buildModelTryOrder(requestedModel, resolvedModel, availableModels) {
     }
   }
 
-  return tryOrder.slice(0, 8)
+  // If alias-based mapping doesn't work, also try other chat-capable models
+  // from this account catalog before giving up.
+  for (const availableModel of availableModels.filter(isLikelyChatModel)) {
+    add(availableModel)
+  }
+
+  return tryOrder.slice(0, 12)
 }
 
 /**
@@ -231,7 +241,8 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
   let response = null
   let errorDetail = ''
 
-  for (const candidateModel of modelsToTry) {
+  for (let modelIndex = 0; modelIndex < modelsToTry.length; modelIndex++) {
+    const candidateModel = modelsToTry[modelIndex]
     attemptedModels.push(candidateModel)
     for (let retryAttempt = 0; retryAttempt <= MAX_TRANSIENT_RETRIES; retryAttempt++) {
       response = await fetch(url, {
@@ -271,6 +282,13 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
 
     if (response?.ok) break
 
+    // If the account type is unsupported for this specific model candidate,
+    // continue trying other account-available candidates before failing.
+    const hasMoreCandidates = modelIndex < modelsToTry.length - 1
+    if (response?.status === 401 && isAccountTypeUnsupportedMessage(errorDetail) && hasMoreCandidates) {
+      continue
+    }
+
     if (!(response?.status === 400 && errorDetail.includes('Unknown model'))) {
       break
     }
@@ -301,7 +319,7 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
     }
 
     // Handle 401 account type not supported
-    if (response.status === 401 && errorDetail.includes('account type is not currently supported')) {
+    if (response.status === 401 && isAccountTypeUnsupportedMessage(errorDetail)) {
       const suggestions = [
         'Your GitHub account type is not currently supported for this model endpoint.',
         '',
@@ -316,6 +334,11 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
         '',
         'If this persists, your account or organization plan may not support this endpoint yet.',
       ]
+
+      if (attemptedModels.length > 1) {
+        suggestions.push('', 'Tried multiple compatible model aliases automatically.')
+      }
+
       throw new Error(suggestions.join('\n   '))
     }
 
