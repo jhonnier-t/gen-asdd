@@ -16,12 +16,7 @@ import { runVscodeConfigAgent } from './agents/vscode-config.mjs'
 
 /**
  * Main orchestration function.
- * Coordinates all ASDD phases with correct parallelism:
- *
- *   Phase 0 — Context reading (local, instant)
- *   Phase 1 — Spec (sequential)
- *   Phase 2 — TDD Backend + TDD Frontend + Backend + Frontend (parallel)
- *   Phase 3 — Documentation + QA + Orchestrator + Skills + Git Hooks + VS Code Config (all parallel)
+ * Generates ASDD infrastructure files.
  *
  * @param {object} opts - Parsed CLI flags from index.mjs
  */
@@ -34,8 +29,7 @@ export async function orchestrate(opts) {
 
   log.title('asdd-gen — Agentic Spec Driven Development Generator')
 
-  // ─── Phase 0: Context ──────────────────────────────────────────────────────
-  log.phase(0, 'Understanding project context...')
+  log.info('Understanding project context...')
   const ctx = readProjectContext(outputDir, {
     onProgress: verboseContext
       ? (event) => {
@@ -71,8 +65,7 @@ export async function orchestrate(opts) {
     return
   }
 
-  // ─── Auth ──────────────────────────────────────────────────────────────────
-  log.phase('⚙️ ', 'Resolving GitHub token...')
+  log.info('Resolving GitHub token...')
   let token
   try {
     token = await resolveToken(opts.token)
@@ -91,19 +84,17 @@ export async function orchestrate(opts) {
   /** @type {Record<string, string>} collected file contents across all phases */
   const files = {}
 
-  log.phase('⚙️ ', 'Generating ASDD agents and instruction files...')
+  log.info('Generating ASDD structure files...')
   console.log('')
 
-  // ─── Phase 1: Spec ─────────────────────────────────────────────────────────
-  log.phase(1, 'Generating specification (sequential)...')
+  log.info('Creating core specification files...')
 
   const specFiles = await runSpecAgent(agentArgs)
   Object.assign(files, specFiles)
   log.agent('spec', `created ${Object.keys(specFiles).length} files — ${Object.keys(specFiles).join(', ')}`)
   console.log('')
 
-  // ─── Phase 2: TDD + Implementation (parallel) ──────────────────────────────
-  log.phase(2, `Generating TDD and implementation agents (concurrency: ${maxAgentConcurrency})...`)
+  log.info('Creating implementation and test agent files...')
 
   const phase2Tasks = [
     { name: 'tdd-backend', run: () => runTddBackendAgent(agentArgs) },
@@ -116,8 +107,7 @@ export async function orchestrate(opts) {
   processPhaseResults(phase2Results, phase2Tasks.map((task) => task.name), files)
   console.log('')
 
-  // ─── Phase 3: Documentation + QA + GitHub Structure (parallel) ────────────
-  log.phase(3, `Generating documentation, QA, orchestration, and tooling artifacts (concurrency: ${maxAgentConcurrency})...`)
+  log.info('Creating documentation, orchestration, and tooling files...')
 
   const phase3Tasks = [
     { name: 'documentation', run: () => runDocumentationAgent(agentArgs) },
@@ -133,8 +123,7 @@ export async function orchestrate(opts) {
   processPhaseResults(phase3Results, phase3Tasks.map((task) => task.name), files)
   console.log('')
 
-  // ─── Write Output ──────────────────────────────────────────────────────────
-  log.phase('✓', 'Writing output files...')
+  log.info('Writing output files...')
   const writtenPaths = await writeGithubFolder(outputDir, files)
   console.log('')
   log.success(`Generated ${writtenPaths.length} files:`)
