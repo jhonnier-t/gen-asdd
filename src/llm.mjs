@@ -61,6 +61,32 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
       throw new Error(suggestions.join('\n   '))
     }
 
+    // Handle 400 Unknown model error
+    if (response.status === 400 && errorDetail.includes('Unknown model')) {
+      const suggestions = [
+        `Model "${model}" is not available in your account.`,
+        '',
+        'Check your available models:',
+        '   https://github.com/marketplace/models',
+        '',
+        'Common models to try:',
+        '   openai/gpt-4o-mini          (OpenAI, smaller & faster)',
+        '   claude-3.5-haiku            (Anthropic, lightweight)',
+        '   claude-3.5-sonnet           (Anthropic, powerful)',
+        '   google/gemini-2.0-flash     (Google Gemini, fast)',
+        '   mistral-large               (Mistral, open-weights)',
+        '',
+        'Run with a different model:',
+        '   npx asdd-gen --model openai/gpt-4o-mini',
+        '   npx asdd-gen --model claude-3.5-haiku',
+        '   npx asdd-gen --model google/gemini-2.0-flash',
+        '',
+        'See GitHub Models documentation:',
+        '   https://docs.github.com/en/github-models',
+      ]
+      throw new Error(suggestions.join('\n   '))
+    }
+
     throw new Error(
       `GitHub Models API error [${response.status}]: ${errorDetail}\n` +
       `Model: ${model} | Endpoint: ${url}`

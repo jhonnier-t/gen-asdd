@@ -204,6 +204,24 @@ Tokens starting with `github_pat_` are also valid (fine-grained format).
 
 **Solution**: Request access at https://github.com/models
 
+### Unknown model error (HTTP 400)
+
+**Error**: Unknown model: openai/gpt-4o
+
+**Reason**: The specified model is not available in your GitHub Models account. Different models are rolled out gradually.
+
+**Solution**: 
+1. Check your available models: **https://github.com/marketplace/models**
+2. Try a different model with the `--model` flag:
+
+```bash
+npx asdd-gen --model openai/gpt-4o-mini --token ghp_xxx...
+npx asdd-gen --model claude-3.5-haiku --token ghp_xxx...
+npx asdd-gen --model google/gemini-2.0-flash --token ghp_xxx...
+```
+
+For more details, see: https://docs.github.com/en/github-models
+
 ---
 
 
