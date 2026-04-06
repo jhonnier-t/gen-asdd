@@ -24,6 +24,105 @@ async function fetchAvailableModels(token) {
   }
 }
 
+function isLikelyChatModel(modelId) {
+  const lower = modelId.toLowerCase()
+  if (lower.includes('embed') || lower.includes('embedding')) return false
+  return (
+    lower.includes('gpt') ||
+    lower.includes('claude') ||
+    lower.includes('gemini') ||
+    lower.includes('llama') ||
+    lower.includes('mistral') ||
+    lower.includes('instruct') ||
+    lower.includes('chat')
+  )
+}
+
+function quoteModelArg(modelId) {
+  return `"${modelId}"`
+}
+
+function parseAzureModelId(modelId) {
+  const match = modelId.match(/\/models\/([^/]+)\/versions\/(\d+)/i)
+  if (!match) return null
+
+  const [, modelName, versionText] = match
+  const version = Number(versionText)
+
+  return {
+    id: modelId,
+    name: decodeURIComponent(modelName).toLowerCase(),
+    version: Number.isFinite(version) ? version : 0,
+  }
+}
+
+function resolveAliasCandidates(requestedModel) {
+  const lower = requestedModel.toLowerCase()
+  const lastSegment = lower.includes('/') ? lower.split('/').pop() : lower
+
+  const candidates = new Set([lower, lastSegment])
+
+  if (lower === 'openai/gpt-4o-mini') {
+    candidates.add('gpt-4o-mini')
+    candidates.add('gpt-4o')
+  }
+
+  if (lower === 'openai/gpt-4o') {
+    candidates.add('gpt-4o')
+  }
+
+  if (lower === 'claude-3.5-haiku') {
+    candidates.add('claude-3.5-haiku')
+    candidates.add('haiku')
+  }
+
+  if (lower === 'claude-3.5-sonnet') {
+    candidates.add('claude-3.5-sonnet')
+    candidates.add('sonnet')
+  }
+
+  if (lower === 'google/gemini-2.0-flash') {
+    candidates.add('gemini-2.0-flash')
+    candidates.add('gemini')
+  }
+
+  if (lower === 'mistral-large') {
+    candidates.add('mistral-large')
+    candidates.add('mistral')
+  }
+
+  return [...candidates]
+}
+
+function resolveModelForAccount(requestedModel, availableModels) {
+  if (!availableModels.length) return requestedModel
+  if (availableModels.includes(requestedModel)) return requestedModel
+
+  const azureModels = availableModels
+    .map(parseAzureModelId)
+    .filter(Boolean)
+
+  if (!azureModels.length) return requestedModel
+
+  const aliasCandidates = resolveAliasCandidates(requestedModel)
+
+  for (const candidate of aliasCandidates) {
+    const directMatches = azureModels
+      .filter((m) => m.name === candidate)
+      .sort((a, b) => b.version - a.version)
+    if (directMatches.length) return directMatches[0].id
+  }
+
+  for (const candidate of aliasCandidates) {
+    const partialMatches = azureModels
+      .filter((m) => m.name.includes(candidate))
+      .sort((a, b) => b.version - a.version)
+    if (partialMatches.length) return partialMatches[0].id
+  }
+
+  return requestedModel
+}
+
 /**
  * Calls the GitHub Models chat completions API.
  *
@@ -37,6 +136,8 @@ async function fetchAvailableModels(token) {
  */
 export async function chat({ token, model, messages, maxTokens = 4096, temperature = 0.2 }) {
   const url = `${GITHUB_MODELS_ENDPOINT}/chat/completions`
+  const availableModels = await fetchAvailableModels(token)
+  const resolvedModel = resolveModelForAccount(model, availableModels)
 
   const response = await fetch(url, {
     method: 'POST',
@@ -45,7 +146,7 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model,
+      model: resolvedModel,
       messages,
       temperature,
       max_tokens: maxTokens,
@@ -104,7 +205,7 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
 
     // Handle 400 Unknown model error
     if (response.status === 400 && errorDetail.includes('Unknown model')) {
-      const availableModels = await fetchAvailableModels(token)
+      const chatCapableModels = availableModels.filter(isLikelyChatModel)
       const preferredModels = [
         'openai/gpt-4o-mini',
         'claude-3.5-haiku',
@@ -112,8 +213,8 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
         'google/gemini-2.0-flash',
         'mistral-large',
       ]
-      const suggestedModels = preferredModels.filter((m) => availableModels.includes(m))
-      const fallbackModels = availableModels.slice(0, 5)
+      const suggestedModels = preferredModels.filter((m) => chatCapableModels.includes(m))
+      const fallbackModels = chatCapableModels.slice(0, 5)
       const modelsToShow = suggestedModels.length ? suggestedModels : fallbackModels
 
       const suggestions = [
@@ -123,6 +224,10 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
         '   https://github.com/marketplace/models',
       ]
 
+      if (resolvedModel !== model) {
+        suggestions.push('', `Tried automatic mapping to: ${resolvedModel}`)
+      }
+
       if (modelsToShow.length) {
         suggestions.push('', 'Models available for your account:')
         for (const availableModel of modelsToShow) {
@@ -131,15 +236,21 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
 
         suggestions.push('', 'Run with one of these models:')
         for (const availableModel of modelsToShow.slice(0, 3)) {
-          suggestions.push(`   npx asdd-gen --model ${availableModel} --token ghp_xxx...`)
+          suggestions.push(`   npx asdd-gen --model ${quoteModelArg(availableModel)} --token ghp_xxx...`)
         }
       } else {
         suggestions.push(
           '',
-          'No model list could be retrieved for this token/account.',
+          'No chat/instruct models were found in your account model list.',
+          'Your account may only have embedding models for now.',
           'Verify GitHub Models access: https://github.com/models',
           'See GitHub Models documentation: https://docs.github.com/en/github-models'
         )
+      }
+
+      const azureOpenAiModels = chatCapableModels.filter((m) => m.includes('/azure-openai/models/'))
+      if (azureOpenAiModels.length) {
+        suggestions.push('', 'Tip: If your account exposes Azure model IDs, use them exactly as listed.')
       }
 
       throw new Error(suggestions.join('\n   '))

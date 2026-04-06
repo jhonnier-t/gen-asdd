@@ -228,14 +228,17 @@ npx asdd-gen --model mistral-large --token ghp_xxx...
 
 **Solution**: 
 1. Check your available models: **https://github.com/marketplace/models**
-2. `asdd-gen` now queries your account models and suggests exact model IDs available for your token.
-3. Run with one of the suggested models, for example:
+2. `asdd-gen` now queries your account models and automatically maps short aliases (for example `openai/gpt-4o-mini`) to account-specific IDs (for example `azureml://...`) when possible.
+3. Run with one of the suggested models, for example (use quotes for `azureml://...` IDs):
 
 ```bash
 npx asdd-gen --model openai/gpt-4o-mini --token ghp_xxx...
 npx asdd-gen --model claude-3.5-haiku --token ghp_xxx...
 npx asdd-gen --model google/gemini-2.0-flash --token ghp_xxx...
+npx asdd-gen --model "azureml://registries/azure-openai/models/gpt-4o/versions/2" --token ghp_xxx...
 ```
+
+If only embedding models are listed, text generation will not work until your account has chat/instruct models enabled.
 
 For more details, see: https://docs.github.com/en/github-models
 
