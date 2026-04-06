@@ -228,7 +228,8 @@ npx asdd-gen --model mistral-large --token ghp_xxx...
 
 **Solution**: 
 1. Check your available models: **https://github.com/marketplace/models**
-2. Try a different model with the `--model` flag:
+2. `asdd-gen` now queries your account models and suggests exact model IDs available for your token.
+3. Run with one of the suggested models, for example:
 
 ```bash
 npx asdd-gen --model openai/gpt-4o-mini --token ghp_xxx...
