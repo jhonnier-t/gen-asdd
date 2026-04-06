@@ -128,8 +128,82 @@ The tool resolves a GitHub token in this order:
 
 ---
 
-## License
+## Token setup
 
-MIT
+`asdd-gen` requires a GitHub token to access the GitHub Models API. 
+
+### Getting a Fine-grained Personal Access Token
+
+1. Go to: **https://github.com/settings/tokens?type=beta**
+2. Click **"Generate new token"** → **"Fine-grained personal access token"**
+3. Fill in:
+   - **Token name**: `asdd-gen`
+   - **Repository access**: "All repositories"
+4. Under **Permissions**, ensure these are set (scroll down):
+   - **Models**: Read and write
+5. Click **"Generate token"** and copy it immediately (you won't see it again)
+
+### Using the token
+
+Use the token with the `--token` flag:
+
+```bash
+npx asdd-gen --token ghp_xxx...
+```
+
+Or export it as an environment variable:
+
+```bash
+export GITHUB_TOKEN=ghp_xxx...
+npx asdd-gen
+```
+
+Tokens starting with `github_pat_` are also valid (fine-grained format).
+
+---
+
+## Security & Privacy
+
+**Your token is never stored, logged, or sent anywhere except to GitHub.**
+
+- Tokens passed via `--token` flag or environment variables are used **only** to authenticate requests to GitHub Models API
+- No tokens are logged, cached, or stored on disk
+- All token handling happens in-process and in-memory only
+- Generated files never contain or reference your token
+- `asdd-gen` is open-source; you can review the code at https://github.com/jhonnier-t/asdd-gen
+
+---
+
+## Troubleshooting
+
+### "No token found" / OAuth device flow fails
+
+**Error**: Device flow initiation failed (HTTP 404)
+
+**Solution**: Create a Fine-grained PAT (see [Token setup](#token-setup) above) and pass it via `--token` or `GITHUB_TOKEN` env variable.
+
+### "The `models` permission is required" (HTTP 401)
+
+**Error**: GitHub Models API error [401]: The `models` permission is required to access this endpoint
+
+**Reason**: Your token doesn't have the "Models" permission scope.
+
+**Solution**:
+1. Create a **new Fine-grained Personal Access Token**: https://github.com/settings/tokens?type=beta
+2. Make sure **"Models" permission is set to "Read and write"**
+3. Copy the new token and use it:
+   ```bash
+   npx asdd-gen --token ghp_xxx...
+   ```
+
+### GitHub Models API not available
+
+**Error**: 403 Forbidden or "Models service not available"
+
+**Reason**: Your GitHub account doesn't have access to [GitHub Models](https://github.com/marketplace/models) yet.
+
+**Solution**: Request access at https://github.com/models
+
+---
 
 

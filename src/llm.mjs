@@ -38,6 +38,29 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
     } catch {
       errorDetail = await response.text()
     }
+
+    // Handle 401 Unauthorized with models permission issue
+    if (response.status === 401 && errorDetail.includes('models')) {
+      const suggestions = [
+        'GitHub Models API requires proper token permissions.',
+        '',
+        'Create a Fine-grained Personal Access Token:',
+        '   https://github.com/settings/tokens?type=beta',
+        '',
+        'Steps:',
+        '   1. Click "Generate new token" → "Fine-grained personal access token"',
+        '   2. Name: "asdd-gen"',
+        '   3. Under "Repository access": Select "All repositories"',
+        '   4. Under "Permissions", scroll to "Models"',
+        '   5. Set "Models" permission to "Read and write"',
+        '   6. Click "Generate token" and copy it',
+        '',
+        'Then run:',
+        '   npx asdd-gen --token ghp_xxx...',
+      ]
+      throw new Error(suggestions.join('\n   '))
+    }
+
     throw new Error(
       `GitHub Models API error [${response.status}]: ${errorDetail}\n` +
       `Model: ${model} | Endpoint: ${url}`

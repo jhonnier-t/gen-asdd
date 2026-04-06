@@ -1,6 +1,6 @@
 {
   "name": "asdd-gen",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Agentic Spec Driven Development generator — auto-generates .github ASDD structure using GitHub Copilot",
   "keywords": [
     "agent",
