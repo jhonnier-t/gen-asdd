@@ -13,7 +13,7 @@
     "gherkin",
     "github"
   ],
-  "homepage": "https://github.com/your-org/asdd-gen",
+  "homepage": "https://github.com/jhonnier-t/asdd-gen",
   "license": "MIT",
   "type": "module",
   "bin": {
