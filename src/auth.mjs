@@ -83,11 +83,26 @@ async function deviceFlow() {
     if (!deviceRes.ok) {
       const msg = `Device flow initiation failed (HTTP ${deviceRes.status})`
       const suggestions = [
-        '1. Set GITHUB_TOKEN env variable:',
-        '   export GITHUB_TOKEN=ghp_xxxx',
-        'Or pass it via CLI flag:',
-        '   npx asdd-gen --token ghp_xxxx',
-        'Or use GitHub CLI (if available):',
+        'Generate a Personal Access Token:',
+        '   https://github.com/settings/tokens',
+        '',
+        '   Steps:',
+        '   1. Click "Generate new token" → "Personal access token (classic)"',
+        '   2. Name: "asdd-gen"',
+        '   3. Select scope: "read:user"',
+        '   4. Click "Generate token" and copy it (e.g., ghp_xxx...)',
+        '',
+        'Then run:',
+        '',
+        '   npx asdd-gen --token ghp_xxx...',
+        '',
+        'Alternative methods:',
+        '',
+        'Option 1: Export as environment variable',
+        '   export GITHUB_TOKEN=ghp_xxx...',
+        '   npx asdd-gen',
+        '',
+        'Option 2: Use GitHub CLI',
         '   gh auth login',
         '   gh auth token',
       ]
@@ -99,9 +114,9 @@ async function deviceFlow() {
 
     // Step 2: Show code to the user
     console.log('')
-    log.info(`🔗 Open ${verification_uri} in your browser`)
-    log.info(`📝 Enter code: \x1b[1m\x1b[32m${user_code}\x1b[0m`)
-    log.dim(`⏱️  Code expires in ${expires_in} seconds`)
+    log.info(`Open ${verification_uri} in your browser`)
+    log.info(`Enter code: \x1b[1m\x1b[32m${user_code}\x1b[0m`)
+    log.dim(`Code expires in ${expires_in} seconds`)
     console.log('')
 
     // Optionally open the browser on supported platforms
@@ -151,15 +166,15 @@ async function pollForToken(deviceCode, intervalSeconds, expiresIn) {
         process.stdout.write('.')
         break
       case 'expired_token':
-        throw new Error('✖ Device code expired. Run asdd-gen again.')
+        throw new Error('Device code expired. Run asdd-gen again.')
       case 'access_denied':
-        throw new Error('✖ Authorization denied. If you declined on GitHub, run asdd-gen again.')
+        throw new Error('Authorization denied. If you declined on GitHub, run asdd-gen again.')
       default:
-        throw new Error(`✖ OAuth error: ${data.error_description ?? data.error}`)
+        throw new Error(`OAuth error: ${data.error_description ?? data.error}`)
     }
   }
 
-  throw new Error('✖ Device code expired before authorization. Run asdd-gen again.')
+  throw new Error('Device code expired before authorization. Run asdd-gen again.')
 }
 
 function sleep(ms) {

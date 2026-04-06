@@ -60,6 +60,7 @@ export async function orchestrate(opts) {
     console.log('')
     console.log(err.message)
     console.log('')
+    // Exit immediately with no cleanup to avoid hanging processes
     process.exit(1)
   }
 
