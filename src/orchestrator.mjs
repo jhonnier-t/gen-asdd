@@ -30,6 +30,7 @@ export async function orchestrate(opts) {
   const model = opts.model ?? 'openai/gpt-4o'
   const dryRun = opts['dry-run'] ?? false
   const verboseContext = (opts['verbose-context'] ?? true) && !opts['quiet-context']
+  const maxAgentConcurrency = 2
 
   log.title('asdd-gen — Agentic Spec Driven Development Generator')
 
@@ -102,7 +103,7 @@ export async function orchestrate(opts) {
   console.log('')
 
   // ─── Phase 2: TDD + Implementation (parallel) ──────────────────────────────
-  log.phase(2, 'Generating TDD and implementation agents in parallel...')
+  log.phase(2, `Generating TDD and implementation agents (concurrency: ${maxAgentConcurrency})...`)
 
   const phase2Tasks = [
     { name: 'tdd-backend', run: () => runTddBackendAgent(agentArgs) },
@@ -111,30 +112,25 @@ export async function orchestrate(opts) {
     { name: 'frontend', run: () => runFrontendAgent(agentArgs) },
   ]
 
-  const phase2Results = await Promise.allSettled(phase2Tasks.map((task) => task.run()))
+  const phase2Results = await runTasksWithConcurrency(phase2Tasks, maxAgentConcurrency)
   processPhaseResults(phase2Results, phase2Tasks.map((task) => task.name), files)
   console.log('')
 
   // ─── Phase 3: Documentation + QA + GitHub Structure (parallel) ────────────
-  log.phase(3, 'Generating documentation, QA, orchestration, and tooling artifacts...')
+  log.phase(3, `Generating documentation, QA, orchestration, and tooling artifacts (concurrency: ${maxAgentConcurrency})...`)
 
-  const phase3Results = await Promise.allSettled([
-    runDocumentationAgent(agentArgs),
-    runQaAgent(agentArgs),
-    runOrchestratorAgent(agentArgs),
-    runSkillsAgent(agentArgs),
-    runGitHooksAgent(agentArgs),
-    runVscodeConfigAgent(agentArgs),
-  ])
+  const phase3Tasks = [
+    { name: 'documentation', run: () => runDocumentationAgent(agentArgs) },
+    { name: 'qa', run: () => runQaAgent(agentArgs) },
+    { name: 'orchestrator', run: () => runOrchestratorAgent(agentArgs) },
+    { name: 'skills', run: () => runSkillsAgent(agentArgs) },
+    { name: 'git-hooks', run: () => runGitHooksAgent(agentArgs) },
+    { name: 'vscode-config', run: () => runVscodeConfigAgent(agentArgs) },
+  ]
 
-  processPhaseResults(phase3Results, [
-    'documentation',
-    'qa',
-    'orchestrator',
-    'skills',
-    'git-hooks',
-    'vscode-config',
-  ], files)
+  const phase3Results = await runTasksWithConcurrency(phase3Tasks, maxAgentConcurrency)
+
+  processPhaseResults(phase3Results, phase3Tasks.map((task) => task.name), files)
   console.log('')
 
   // ─── Write Output ──────────────────────────────────────────────────────────
@@ -168,6 +164,36 @@ function processPhaseResults(results, names, files) {
       log.warn(`Agent "${name}" failed: ${result.reason?.message ?? result.reason}`)
     }
   }
+}
+
+/**
+ * Runs async tasks with bounded concurrency and returns Promise.allSettled-compatible results.
+ * @param {{name: string, run: () => Promise<Record<string, string>>}[]} tasks
+ * @param {number} concurrency
+ * @returns {Promise<PromiseSettledResult<Record<string, string>>[]>}
+ */
+async function runTasksWithConcurrency(tasks, concurrency) {
+  const results = new Array(tasks.length)
+  let nextIndex = 0
+
+  async function worker() {
+    while (true) {
+      const index = nextIndex
+      nextIndex++
+      if (index >= tasks.length) return
+
+      try {
+        const value = await tasks[index].run()
+        results[index] = { status: 'fulfilled', value }
+      } catch (reason) {
+        results[index] = { status: 'rejected', reason }
+      }
+    }
+  }
+
+  const workerCount = Math.max(1, Math.min(concurrency, tasks.length))
+  await Promise.all(Array.from({ length: workerCount }, () => worker()))
+  return /** @type {PromiseSettledResult<Record<string, string>>[]} */ (results)
 }
 
 function printArtifactList() {

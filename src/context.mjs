@@ -38,6 +38,8 @@ const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', '.next', '.nuxt', '.astro',
   'out', 'coverage', '.cache', '.turbo', 'vendor', '__pycache__',
   '.venv', 'venv', 'target', 'bin', 'obj', '.gradle',
+  '.mypy_cache', '.pytest_cache', '.ruff_cache', '.tox',
+  '.claude',
 ])
 
 const MAX_TREE_DEPTH = 4
@@ -111,6 +113,7 @@ function readReadme(rootDir, onProgress) {
 function buildFileTree(rootDir, onProgress) {
   const lines = []
   let count = 0
+  let truncationNotified = false
   const stats = {
     totalVisitedDirs: 0,
     totalVisitedFiles: 0,
@@ -144,7 +147,10 @@ function buildFileTree(rootDir, onProgress) {
       if (count >= MAX_TREE_ENTRIES) {
         lines.push(`${prefix}... (truncated)`)
         stats.truncated = true
-        onProgress?.({ type: 'truncated', message: 'Context tree truncated at maximum entry limit' })
+        if (!truncationNotified) {
+          onProgress?.({ type: 'truncated', message: 'Context tree truncated at maximum entry limit' })
+          truncationNotified = true
+        }
         return
       }
 

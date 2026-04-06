@@ -1,6 +1,7 @@
 // GitHub Models API — OpenAI-compatible inference endpoint
 // Docs: https://docs.github.com/en/github-models
 const GITHUB_MODELS_ENDPOINT = 'https://models.inference.ai.azure.com'
+const MAX_TRANSIENT_RETRIES = 4
 
 async function fetchAvailableModels(token) {
   try {
@@ -55,6 +56,25 @@ function toUniquePublicModels(modelIds) {
     if (!result.includes(publicName)) result.push(publicName)
   }
   return result
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function parseRetrySeconds(errorMessage) {
+  const match = String(errorMessage).match(/wait\s+(\d+)\s+seconds?/i)
+  if (!match) return null
+  const parsed = Number(match[1])
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function computeRetryDelayMs(errorMessage, attemptNumber) {
+  const retrySeconds = parseRetrySeconds(errorMessage)
+  const serverDelay = retrySeconds != null ? Math.max(1, retrySeconds) * 1000 : 0
+  const backoff = Math.min(5000, 400 * 2 ** attemptNumber)
+  const jitter = Math.floor(Math.random() * 250)
+  return Math.max(serverDelay, backoff) + jitter
 }
 
 function parseAzureModelId(modelId) {
@@ -199,30 +219,45 @@ export async function chat({ token, model, messages, maxTokens = 4096, temperatu
 
   for (const candidateModel of modelsToTry) {
     attemptedModels.push(candidateModel)
-    response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: candidateModel,
-        messages,
-        temperature,
-        max_tokens: maxTokens,
-      }),
-    })
+    for (let retryAttempt = 0; retryAttempt <= MAX_TRANSIENT_RETRIES; retryAttempt++) {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: candidateModel,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+        }),
+      })
 
-    if (response.ok) break
+      if (response.ok) break
 
-    try {
-      const errData = await response.json()
-      errorDetail = errData?.error?.message ?? JSON.stringify(errData)
-    } catch {
-      errorDetail = await response.text()
+      try {
+        const errData = await response.json()
+        errorDetail = errData?.error?.message ?? JSON.stringify(errData)
+      } catch {
+        errorDetail = await response.text()
+      }
+
+      const isTransient = response.status === 429 || (response.status >= 500 && response.status <= 599)
+      const canRetry = isTransient && retryAttempt < MAX_TRANSIENT_RETRIES
+
+      if (canRetry) {
+        const delayMs = computeRetryDelayMs(errorDetail, retryAttempt)
+        await sleep(delayMs)
+        continue
+      }
+
+      break
     }
 
-    if (!(response.status === 400 && errorDetail.includes('Unknown model'))) {
+    if (response?.ok) break
+
+    if (!(response?.status === 400 && errorDetail.includes('Unknown model'))) {
       break
     }
   }
