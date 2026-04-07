@@ -57,22 +57,21 @@ It must:
 
 Tech stack test frameworks: ${stack} (use appropriate framework: Jest/Vitest/pytest/JUnit etc.)
 
-Include YAML frontmatter with: description, tools (fileSystem, codebase).
-`,
-      },
-    ],
-  })
-
-  const promptContent = await chat({
-    token,
-    model,
-    messages: [
-      { role: 'system', content: SYSTEM },
-      {
-        role: 'user',
-        content: `${contextBlock}
-
-Generate \`prompts/02-tdd-backend.prompt.md\` — a reusable TDD prompt for backend tests.
+Include YAML frontmatter:
+  name: tdd-backend
+  description: (keyword-rich: backend tests, TDD Red, unit testing, test-first)
+  model: Claude Sonnet 4.6 (copilot)
+  tools:
+    - read/readFile
+    - edit/createFile
+    - edit/editFiles
+    - search/listDirectory
+    - search
+    - execute/runInTerminal
+  agents: []
+  handoffs:
+    - label: "Implementar Backend" → agent: backend, prompt: "Los tests de backend están listos y fallan (Red phase). Implementa el código para hacerlos pasar.", send: false
+    - label: "Volver al Orchestrator" → agent: orchestrator, send: false — a reusable TDD prompt for backend tests.
 
 Architecture: ${detectedPatterns}
 

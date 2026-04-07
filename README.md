@@ -71,14 +71,14 @@ npx asdd-gen [--token ghp_xxx]
 ├── specs/
 │   └── SPEC-TEMPLATE.md             ← Blank template — copy per feature
 ├── agents/
-│   ├── orchestrator.agent.md        ← @orchestrator: coordinates the full ASDD pipeline
+│   ├── orchestrator.agent.md        ← @orchestrator: coordinates full pipeline (model + tools + handoffs)
 │   ├── spec.agent.md                ← @spec: creates specs in .github/specs/
 │   ├── tdd-backend.agent.md         ← @tdd-backend: writes backend tests first (reads spec)
 │   ├── tdd-frontend.agent.md        ← @tdd-frontend: writes frontend tests first (reads spec)
 │   ├── backend.agent.md             ← @backend: implements backend code to pass tests
 │   ├── frontend.agent.md            ← @frontend: implements frontend code to pass tests
 │   ├── documentation.agent.md       ← @docs: updates docs, ADRs, changelog
-│   └── qa.agent.md                  ← @qa: generates Gherkin scenarios from spec
+│   └── qa.agent.md                  ← @qa: generates Gherkin scenarios + risk matrix
 ├── prompts/
 │   ├── 00-orchestrate.prompt.md
 │   ├── 02-tdd-backend.prompt.md
@@ -87,14 +87,22 @@ npx asdd-gen [--token ghp_xxx]
 │   ├── 05-frontend.prompt.md
 │   ├── 06-documentation.prompt.md
 │   └── 07-qa-scenarios.prompt.md
-└── instructions/                    ← Copilot skills (auto-loaded via applyTo glob)
-    ├── general.instructions.md      ← Global rules + architecture principles (applyTo: **)
-    ├── spec.instructions.md         ← Spec template + ASDD flow (applyTo: .github/specs/**)
-    ├── backend.instructions.md      ← Backend conventions + layer rules
-    ├── frontend.instructions.md     ← Frontend/component conventions
-    ├── testing.instructions.md      ← TDD mandate + test patterns
-    ├── security.instructions.md     ← OWASP Top 10 rules (applyTo: **)
-    └── git.instructions.md          ← Commit conventions + branch strategy
+├── instructions/                    ← Path-scoped rules (auto-applied via applyTo glob)
+│   ├── general.instructions.md      ← Global rules + architecture principles (applyTo: **)
+│   ├── spec.instructions.md         ← Spec template + ASDD flow (applyTo: .github/specs/**)
+│   ├── backend.instructions.md      ← Backend conventions + layer rules
+│   ├── frontend.instructions.md     ← Frontend/component conventions
+│   ├── testing.instructions.md      ← TDD mandate + test patterns
+│   ├── security.instructions.md     ← OWASP Top 10 rules (applyTo: **)
+│   └── git.instructions.md          ← Commit conventions + branch strategy
+└── skills/                          ← Slash-command workflows (type / in Copilot Chat)
+    ├── asdd-orchestrate/SKILL.md    ← /asdd-orchestrate
+    ├── generate-spec/SKILL.md       ← /generate-spec
+    ├── implement-backend/SKILL.md   ← /implement-backend
+    ├── implement-frontend/SKILL.md  ← /implement-frontend
+    ├── unit-testing/SKILL.md        ← /unit-testing
+    ├── gherkin-case-generator/SKILL.md ← /gherkin-case-generator
+    └── risk-identifier/SKILL.md     ← /risk-identifier
 
 .vscode/
 ├── settings.json                    ← Copilot agent mode + editor config

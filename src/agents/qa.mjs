@@ -43,22 +43,19 @@ Gherkin quality rules:
 - Scenarios are independent — no shared mutable state between them
 - Reference spec ID in Feature docstring
 
-Include YAML frontmatter with: description, tools (fileSystem, codebase).
-`,
-      },
-    ],
-  })
-
-  const promptContent = await chat({
-    token,
-    model,
-    messages: [
-      { role: 'system', content: SYSTEM },
-      {
-        role: 'user',
-        content: `${contextBlock}
-
-Generate \`prompts/07-qa-scenarios.prompt.md\` — a reusable QA prompt.
+Include YAML frontmatter:
+  name: qa
+  description: (keyword-rich: QA, Gherkin, acceptance scenarios, risk, BDD)
+  model: Claude Sonnet 4.6 (copilot)
+  tools:
+    - read/readFile
+    - edit/createFile
+    - edit/editFiles
+    - search/listDirectory
+    - search
+  agents: []
+  handoffs:
+    - label: "Volver al Orchestrator" → agent: orchestrator, prompt: "QA completado. Escenarios y riesgos disponibles. Revisa el estado del flujo ASDD.", send: false — a reusable QA prompt.
 
 Structure with:
 - Variables: {{spec_file}}, {{feat_id}}, {{slug}}

@@ -48,22 +48,19 @@ Architecture documentation rules:
 - If the feature introduces a new ${ctx.architecturePatterns?.detected?.[0] || 'layer/module'},
   add a diagram showing how it fits into the overall architecture
 
-Include YAML frontmatter with: description, tools (fileSystem, codebase).
-`,
-      },
-    ],
-  })
-
-  const promptContent = await chat({
-    token,
-    model,
-    messages: [
-      { role: 'system', content: SYSTEM },
-      {
-        role: 'user',
-        content: `${contextBlock}
-
-Generate \`prompts/06-documentation.prompt.md\` — a reusable documentation prompt.
+Include YAML frontmatter:
+  name: documentation
+  description: (keyword-rich: documentation, README, ADR, changelog, technical writer)
+  model: Gemini 2.0 Flash (copilot)
+  tools:
+    - read/readFile
+    - edit/createFile
+    - edit/editFiles
+    - search/listDirectory
+    - search
+  agents: []
+  handoffs:
+    - label: "Volver al Orchestrator" → agent: orchestrator, prompt: "Documentación técnica generada. Revisa el estado del flujo ASDD.", send: false — a reusable documentation prompt.
 
 Architecture: ${detectedPatterns}
 

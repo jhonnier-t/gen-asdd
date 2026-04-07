@@ -58,7 +58,22 @@ It must:
 The agent definition must include specific sections for each architecture layer
 with concrete examples matching the project's tech stack (${stack}).
 
-Include YAML frontmatter with: description, tools (fileSystem, codebase, terminalLastCommand).
+Include YAML frontmatter:
+  name: backend
+  description: (keyword-rich: backend, implementation, TDD Green, Clean Architecture)
+  model: Claude Sonnet 4.6 (copilot)
+  tools:
+    - read/readFile
+    - edit/createFile
+    - edit/editFiles
+    - search/listDirectory
+    - search
+    - execute/runInTerminal
+  agents: []
+  handoffs:
+    - label: "Implementar Frontend" → agent: frontend, send: false
+    - label: "Generar Tests de Backend" → agent: tdd-backend, prompt: "El backend está implementado. Genera las pruebas unitarias.", send: false
+    - label: "Volver al Orchestrator" → agent: orchestrator, send: false
 `,
       },
     ],

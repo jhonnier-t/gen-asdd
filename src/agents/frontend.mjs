@@ -57,7 +57,22 @@ It must:
 The agent definition must include a component implementation checklist and
 specific accessibility checks for this stack (${stack}).
 
-Include YAML frontmatter with: description, tools (fileSystem, codebase).
+Include YAML frontmatter:
+  name: frontend
+  description: (keyword-rich: frontend, UI, implementation, TDD Green, components)
+  model: Claude Sonnet 4.6 (copilot)
+  tools:
+    - read/readFile
+    - edit/createFile
+    - edit/editFiles
+    - search/listDirectory
+    - search
+    - execute/runInTerminal
+  agents: []
+  handoffs:
+    - label: "Implementar Backend" → agent: backend, send: false
+    - label: "Generar Tests de Frontend" → agent: tdd-frontend, prompt: "El frontend está implementado. Genera las pruebas de componentes.", send: false
+    - label: "Volver al Orchestrator" → agent: orchestrator, send: false
 `,
       },
     ],

@@ -13,6 +13,7 @@ Output format: Pure markdown with YAML frontmatter. No extra prose outside the f
 export async function runSkillsAgent({ token, model, ctx }) {
   const contextBlock = buildContextBlock(ctx)
   const stack = ctx.techStack.join(', ') || 'generic'
+  const applyTo = resolveApplyTo(ctx)
   const archPrinciples = ctx.architecturePatterns?.principles?.join(', ') || 'SOLID, DRY, KISS, YAGNI, Separation of Concerns'
   const detectedPatterns = ctx.architecturePatterns?.detected?.length
     ? `Detected architecture patterns: ${ctx.architecturePatterns.detected.join(', ')}.`
@@ -65,7 +66,8 @@ Content must cover:
 
 Generate \`instructions/backend.instructions.md\` — Copilot instructions for backend code.
 
-YAML frontmatter: applyTo targeting backend source dirs (src/**, api/**, server/**, lib/**)
+YAML frontmatter must be exactly:
+  applyTo: "${applyTo.backend}"
 
 Architecture context: ${detectedPatterns}
 Principles: ${archPrinciples}
@@ -99,7 +101,8 @@ Content (tailored to stack: ${stack}):
 
 Generate \`instructions/frontend.instructions.md\` — Copilot instructions for frontend/UI code.
 
-YAML frontmatter: applyTo targeting frontend dirs (src/components/**, src/pages/**, src/app/**)
+YAML frontmatter must be exactly:
+  applyTo: "${applyTo.frontend}"
 
 Content (tailored to stack: ${stack}):
 1. **Component design rules** — single responsibility, prop-driven, no internal HTTP calls
@@ -128,7 +131,8 @@ Content (tailored to stack: ${stack}):
 
 Generate \`instructions/testing.instructions.md\` — Copilot instructions for all test files.
 
-YAML frontmatter: applyTo targeting test files (**/*.test.*, **/*.spec.*, **/__tests__/**)
+YAML frontmatter must be exactly:
+  applyTo: "${applyTo.tests}"
 
 Content (tailored to stack: ${stack}):
 1. **TDD mandate** — tests MUST be written before implementation (Red → Green → Refactor)
@@ -372,6 +376,9 @@ Table listing all .github/prompts/*.prompt.md files and when to use them.
   // git.instructions.md — deterministic, no LLM needed
   const gitInstructions = generateGitInstructions(ctx)
 
+  // ASDD Skills (slash commands — SKILL.md) — deterministic
+  const skillFiles = generateSkillFiles(ctx)
+
   return {
     'instructions/general.instructions.md': general,
     'instructions/backend.instructions.md': backend,
@@ -380,6 +387,7 @@ Table listing all .github/prompts/*.prompt.md files and when to use them.
     'instructions/security.instructions.md': security,
     'instructions/spec.instructions.md': specSkill,
     'instructions/git.instructions.md': gitInstructions,
+    ...skillFiles,
     'ROOT:AGENTS.md': agentsMd,
   }
 }
@@ -453,4 +461,320 @@ Follow **Conventional Commits** (https://www.conventionalcommits.org):
 - Failing tests (except in TDD Red phase — tag commit with \`[red]\`)
 - Debug code, console.log statements, TODO-only commits
 `
+}
+
+// ---------------------------------------------------------------------------
+// ASDD Skills (slash commands — SKILL.md files)
+// Deterministic — same content for all projects, consistent with static mode.
+// ---------------------------------------------------------------------------
+
+function generateSkillFiles(ctx) {
+  const stack = ctx?.techStack?.join(', ') || 'generic'
+
+  return {
+    'skills/asdd-orchestrate/SKILL.md': `---
+name: asdd-orchestrate
+description: "Orchestrates the full ASDD pipeline. Phase 1 (Spec) → Phase 2 (Backend ∥ Frontend) → Phase 3 (Tests ∥) → Phase 4 (QA)."
+argument-hint: "<feature-name> | status"
+---
+
+# ASDD Orchestrate
+
+## Pipeline
+
+\`\`\`
+[PHASE 1 — SEQUENTIAL]
+  spec → .github/specs/<feature>.spec.md  (DRAFT → APPROVED)
+
+[PHASE 2 — PARALLEL ∥]
+  backend  ∥  frontend
+
+[PHASE 3 — PARALLEL ∥]
+  tdd-backend  ∥  tdd-frontend
+
+[PHASE 4 — SEQUENTIAL]
+  qa → Gherkin scenarios + risk analysis
+\`\`\`
+
+## Process
+1. Look for \`.github/specs/<feature>.spec.md\`
+   - Does not exist → invoke \`/generate-spec\` and wait
+   - \`DRAFT\` → ask user to review and approve
+   - \`APPROVED\` → update to \`IN_PROGRESS\` and continue
+2. Launch Phase 2 in parallel (@backend + @frontend)
+3. When Phase 2 completes → launch Phase 3 in parallel (@tdd-backend + @tdd-frontend)
+4. When Phase 3 completes → launch Phase 4 (@qa)
+5. Update spec to \`IMPLEMENTED\` and report final status
+
+## Status command
+When called with \`status\`: list all specs in \`.github/specs/\` with their current status and next pending action.
+
+## Rules
+- No spec with \`APPROVED\` status → no code. No exceptions.
+- Do not implement directly — only coordinate and delegate.
+- If a phase fails → stop the pipeline and report to user with context.
+- Phase 5 (documentation) only if explicitly requested.
+`,
+    'skills/generate-spec/SKILL.md': `---
+name: generate-spec
+description: "Generates a technical ASDD spec in .github/specs/<feature>.spec.md. Required before any implementation."
+argument-hint: "<feature-name>: <requirement description>"
+---
+
+# Generate Spec
+
+## Definition of Ready — validate before generating
+
+- [ ] Clear feature name and one-sentence description provided
+- [ ] At least one user story (As a / I want / So that)
+- [ ] Acceptance criteria in Given/When/Then format
+- [ ] API contract defined if applicable
+- [ ] No ambiguity in scope — open questions are listed
+
+If requirements do not meet DoR → list pending questions before generating.
+
+## Process
+
+1. Check for existing requirement in \`.github/requirements/<feature>.md\`
+2. Read stack: \`.github/instructions/backend.instructions.md\`, \`.github/instructions/frontend.instructions.md\`
+3. Explore existing code — do not duplicate existing models or endpoints
+4. Validate DoR — list questions if ambiguities exist
+5. Use the spec template from \`.github/specs/SPEC-TEMPLATE.md\` EXACTLY
+6. Save to \`.github/specs/<feature-name-kebab-case>.spec.md\`
+
+## Required frontmatter
+
+\`\`\`yaml
+---
+id: FEAT-XXX
+title: "<Feature title>"
+status: draft
+created: YYYY-MM-DD
+author: spec-generator
+---
+\`\`\`
+
+## Restrictions
+- Read and create only. Do not modify existing code.
+- Status always \`draft\`. User approves before implementation.
+`,
+    'skills/implement-backend/SKILL.md': `---
+name: implement-backend
+description: "Implements a complete backend feature. Requires spec with status APPROVED in .github/specs/."
+argument-hint: "<feature-name>"
+---
+
+# Implement Backend
+
+## Prerequisites
+1. Read spec: \`.github/specs/<feature>.spec.md\`
+2. Read architecture: \`.github/instructions/backend.instructions.md\`
+3. Read coding standards: \`.github/copilot-instructions.md\`
+
+## Implementation order
+\`\`\`
+Domain → Application → Infrastructure → API
+\`\`\`
+
+## Rules
+- Make tests pass — NEVER modify tests to pass
+- Follow naming and patterns from existing code exactly
+- Validate all inputs at API boundaries
+- Apply OWASP Top 10: parameterized queries, sanitized inputs, auth enforcement
+- Reference spec ID in file headers: \`// Spec: FEAT-XXX\`
+
+## Restrictions
+- Only backend directory. Do not touch frontend.
+- Do not generate tests (responsibility of @tdd-backend).
+`,
+    'skills/implement-frontend/SKILL.md': `---
+name: implement-frontend
+description: "Implements a complete frontend feature. Requires spec with status APPROVED in .github/specs/."
+argument-hint: "<feature-name>"
+---
+
+# Implement Frontend
+
+## Prerequisites
+1. Read spec: \`.github/specs/<feature>.spec.md\`
+2. Read conventions: \`.github/instructions/frontend.instructions.md\`
+3. Read coding standards: \`.github/copilot-instructions.md\`
+
+## Implementation checklist
+- [ ] Components match spec UI requirements
+- [ ] Loading, error, empty states handled for all async operations
+- [ ] Form validation with inline error messages
+- [ ] Accessibility: semantic HTML, ARIA labels, keyboard navigation
+- [ ] API calls go through the existing data-fetching layer
+- [ ] No business logic in components — extract to hooks or services
+
+## Rules
+- Make tests pass — NEVER modify tests to pass
+- Follow component structure from existing files exactly
+- Reference spec ID in file headers: \`// Spec: FEAT-XXX\`
+
+## Restrictions
+- Only frontend directory. Do not touch backend.
+- Do not generate tests (responsibility of @tdd-frontend).
+`,
+    'skills/unit-testing/SKILL.md': `---
+name: unit-testing
+description: "Generates the full unit test suite for a feature (backend + frontend). Run after spec is APPROVED."
+argument-hint: "<feature-name>"
+---
+
+# Unit Testing
+
+## Process
+1. Read spec: \`.github/specs/<feature>.spec.md\` — acceptance criteria and edge cases
+2. Read testing conventions: \`.github/instructions/testing.instructions.md\`
+3. Match patterns from existing test files (naming, structure, helpers, mocks)
+4. Generate backend and frontend test suites
+
+## Minimum coverage per layer (backend)
+- Happy path (HTTP 200/201)
+- Validation error (HTTP 400/422)
+- Unauthorized (HTTP 401)
+- Not found (HTTP 404)
+
+## Frontend tests to generate
+- Component renders with expected content per state (loading/error/empty/populated)
+- User interactions (clicks, form input)
+- Validation error messages appear for invalid input
+- All API calls mocked
+
+## Rules
+- Tests must fail before implementation (Red phase) — verify with test runner
+- NEVER modify existing passing tests
+- Add spec ID at file header: \`// Spec: FEAT-XXX\`
+`,
+    'skills/gherkin-case-generator/SKILL.md': `---
+name: gherkin-case-generator
+description: "Maps critical flows, generates Gherkin scenarios, and defines test data from the spec. Output in docs/output/qa/."
+argument-hint: "<feature-name>"
+---
+
+# Gherkin Case Generator
+
+## Process
+1. Read spec: \`.github/specs/<feature>.spec.md\`
+2. Identify critical flows: happy paths + error paths + edge cases
+3. Generate one Gherkin scenario per acceptance criterion
+4. Define synthetic test data per scenario
+5. Save to \`docs/output/qa/<feature>-gherkin.md\`
+
+## Scenario tags
+| Type | Tag |
+|------|-----|
+| Main happy path | \`@smoke @critical\` |
+| Input validation | \`@error-path\` |
+| Authorization | \`@smoke @security\` |
+| Edge case | \`@edge-case\` |
+
+## Rules
+- Business language only — no API routes or technical IDs in Gherkin
+- Scenarios must be independent (no shared mutable state)
+- One scenario per acceptance criterion at minimum
+`,
+    'skills/risk-identifier/SKILL.md': `---
+name: risk-identifier
+description: "Classifies risks for a feature using the ASD risk rule (High/Medium/Low). Output in docs/output/qa/."
+argument-hint: "<feature-name>"
+---
+
+# Risk Identifier
+
+## ASD Risk Rule
+\`\`\`
+Risk Level = Probability × Impact
+HIGH   = likely AND significant damage
+MEDIUM = either likely OR significant impact, not both
+LOW    = unlikely AND low damage
+\`\`\`
+
+## Risk vectors to evaluate
+| Vector | Examples |
+|--------|---------|
+| **Security** | Auth bypass, injection, data exposure, IDOR |
+| **Data integrity** | Missing validation, race conditions, partial updates |
+| **Performance** | N+1 queries, missing indexes, unbounded results |
+| **Availability** | No timeout on external calls, cascading failures |
+| **UX** | Missing error states, inaccessible UI |
+
+## Output
+Save risk matrix to \`docs/output/qa/<feature>-risks.md\`:
+\`\`\`markdown
+| ID | Risk | Vector | Probability | Impact | Level | Mitigation |
+\`\`\`
+
+## Rules
+- Every HIGH risk must have a concrete mitigation action
+- If a risk is already mitigated in code, note it as "Mitigated: [how]"
+`,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Dynamic applyTo resolver — derives specific glob patterns from detected stack
+// ---------------------------------------------------------------------------
+
+function resolveApplyTo(ctx) {
+  const stack = ctx.techStack ?? []
+  const tree = ctx.directoryTree ?? ''
+
+  // Extract top-level directory names from the tree string
+  const topDirs = [...tree.matchAll(/^[├└]── ([\w][\w.-]*)\//gm)].map((m) => m[1].toLowerCase())
+
+  // Detect primary language
+  const isPython = stack.includes('python')
+  const isGo = stack.includes('go')
+  const isRust = stack.includes('rust')
+  const isJava = stack.includes('java/maven') || stack.includes('gradle')
+  const isTS = stack.includes('typescript')
+  const hasFrontend = stack.some((s) =>
+    ['react', 'next.js', 'vue', 'nuxt', 'svelte', 'angular', 'astro'].includes(s),
+  )
+
+  let fileExt
+  if (isPython) fileExt = 'py'
+  else if (isGo) fileExt = 'go'
+  else if (isRust) fileExt = 'rs'
+  else if (isJava) fileExt = 'java'
+  else if (isTS) fileExt = '{ts,tsx}'
+  else fileExt = '{js,ts,mjs}'
+
+  // Resolve backend directory
+  const BACKEND_CANDIDATES = ['backend', 'server', 'api', 'app', 'service', 'services', 'src']
+  const backendDir = topDirs.find((d) => BACKEND_CANDIDATES.includes(d))
+  const backend = backendDir ? `${backendDir}/**/*.${fileExt}` : `**/*.${fileExt}`
+
+  // Resolve frontend directory
+  let frontend
+  if (hasFrontend) {
+    const frontExt = isTS ? '{ts,tsx}' : '{js,jsx}'
+    const FRONTEND_CANDIDATES = ['frontend', 'client', 'web', 'ui']
+    const frontendDir = topDirs.find((d) => FRONTEND_CANDIDATES.includes(d))
+    if (frontendDir) {
+      frontend = `${frontendDir}/**/*.${frontExt}`
+    } else if (topDirs.includes('src')) {
+      frontend = `src/**/*.${frontExt}`
+    } else {
+      frontend = `**/*.${frontExt}`
+    }
+  } else {
+    frontend = backend
+  }
+
+  // Resolve test glob
+  let tests
+  if (isPython) tests = '{**/test_*.py,**/tests/**/*.py}'
+  else if (isGo) tests = '**/*_test.go'
+  else if (isRust) tests = '**/*.rs' // tests inline in Rust
+  else if (isJava) tests = '**/*Test.java'
+  else {
+    const testExt = isTS ? '{ts,tsx}' : '{js,ts}'
+    tests = `**/*.{test,spec}.${testExt}`
+  }
+
+  return { backend, frontend, tests }
 }

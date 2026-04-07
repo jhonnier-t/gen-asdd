@@ -49,7 +49,24 @@ The orchestrator agent must:
 7. Produce a completion summary: files generated, tests passed, coverage met
 
 Include a \"Usage\" section with concrete invocation examples.
-Include YAML frontmatter with: description, tools (fileSystem, codebase, terminalLastCommand).
+Include YAML frontmatter with:
+  name: orchestrator
+  description: (keyword-rich, mention ASDD, pipeline, spec, coordinate)
+  tools:
+    - read/readFile
+    - search/listDirectory
+    - search
+    - agent
+  agents: (list all sub-agent names: spec, tdd-backend, tdd-frontend, backend, frontend, documentation, qa)
+  handoffs: (one handoff per phase step, format: label / agent / prompt / send)
+    - "[1] Generar Spec" → agent: spec, send: true
+    - "[2A] Implementar Backend (paralelo)" → agent: backend, send: false
+    - "[2B] Implementar Frontend (paralelo)" → agent: frontend, send: false
+    - "[3A] Tests Backend (paralelo)" → agent: tdd-backend, send: false
+    - "[3B] Tests Frontend (paralelo)" → agent: tdd-frontend, send: false
+    - "[4] Escenarios QA" → agent: qa, send: false
+    - "[5] Documentación (opcional)" → agent: documentation, send: false
+  (do NOT include a model field — orchestrator inherits default)
 `,
       },
     ],

@@ -115,7 +115,21 @@ The agent MUST enforce:
 - Non-functional requirements are explicit and measurable ("response time < 200ms p99")
 - Data model section reflects the project's actual domain entities
 
-Use YAML frontmatter format compatible with GitHub Copilot agent files (.agent.md).
+Use YAML frontmatter format compatible with GitHub Copilot agent files (.agent.md):
+  name: spec
+  description: (keyword-rich: spec, feature, ASDD, specification, draft)
+  model: Claude Haiku 4.5 (copilot)
+  tools:
+    - read/readFile
+    - edit/createFile
+    - edit/editFiles
+    - search/listDirectory
+    - search
+  agents: []
+  handoffs:
+    - label: "Orquestar pipeline completo" → agent: orchestrator, prompt: "La spec está lista. Coordina el pipeline ASDD completo.", send: false
+    - label: "Implementar Backend" → agent: backend, prompt: "La spec está lista. Implementa el backend cuando el status sea approved.", send: false
+    - label: "Implementar Frontend" → agent: frontend, send: false
 `,
         },
       ],

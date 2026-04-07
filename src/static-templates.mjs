@@ -52,7 +52,7 @@ export function generateStaticAsddStructure(projectName, version) {
     'prompts/07-qa-scenarios.prompt.md': promptQaScenarios(),
 
     // -----------------------------------------------------------------------
-    // Copilot instruction files (skills)
+    // Copilot instruction files (path-scoped, auto-applied via applyTo)
     // -----------------------------------------------------------------------
     'instructions/general.instructions.md': instructionGeneral(name),
     'instructions/spec.instructions.md': instructionSpec(),
@@ -61,6 +61,17 @@ export function generateStaticAsddStructure(projectName, version) {
     'instructions/testing.instructions.md': instructionTesting(),
     'instructions/security.instructions.md': instructionSecurity(),
     'instructions/git.instructions.md': instructionGit(),
+
+    // -----------------------------------------------------------------------
+    // ASDD Skills (slash commands — /generate-spec, /implement-backend, etc.)
+    // -----------------------------------------------------------------------
+    'skills/asdd-orchestrate/SKILL.md': skillAsddOrchestrate(),
+    'skills/generate-spec/SKILL.md': skillGenerateSpec(),
+    'skills/implement-backend/SKILL.md': skillImplementBackend(),
+    'skills/implement-frontend/SKILL.md': skillImplementFrontend(),
+    'skills/unit-testing/SKILL.md': skillUnitTesting(),
+    'skills/gherkin-case-generator/SKILL.md': skillGherkinCaseGenerator(),
+    'skills/risk-identifier/SKILL.md': skillRiskIdentifier(),
 
     // -----------------------------------------------------------------------
     // Commit tooling (root-level)
@@ -220,13 +231,28 @@ Step 3 — PARALLEL (after Step 2 completes)
 function specAgent(name) {
   return `---
 name: spec
-description: >
-  Creates feature specifications for ${name} following the ASDD workflow.
-  Asks clarifying questions, then produces a complete spec file in
-  .github/specs/ with status: draft.
+description: "Creates feature specifications for ${name} following the ASDD workflow. Produces a complete spec in .github/specs/ with status: draft."
+model: Claude Haiku 4.5 (copilot)
 tools:
-  - fileSystem
-  - codebase
+  - read/readFile
+  - edit/createFile
+  - edit/editFiles
+  - search/listDirectory
+  - search
+agents: []
+handoffs:
+  - label: Orquestar pipeline completo
+    agent: orchestrator
+    prompt: La spec está lista en .github/specs/. Coordina el pipeline ASDD completo.
+    send: false
+  - label: Implementar Backend
+    agent: backend
+    prompt: La spec está lista. Implementa el backend cuando el status sea approved.
+    send: false
+  - label: Implementar Frontend
+    agent: frontend
+    prompt: La spec está lista. Implementa el frontend cuando el status sea approved.
+    send: false
 ---
 
 # @spec — Feature Specification Agent
@@ -278,13 +304,49 @@ Tell the developer: "Review the spec. When ready, set \`status: approved\` and i
 function orchestratorAgent(name) {
   return `---
 name: orchestrator
-description: >
-  Orchestrates the full ASDD pipeline for ${name}.
-  Reads an approved spec and coordinates all sub-agents.
+description: "Orchestrates the full ASDD pipeline for ${name}. Reads an approved spec and coordinates all sub-agents in phase order."
 tools:
-  - fileSystem
-  - codebase
-  - terminalLastCommand
+  - read/readFile
+  - search/listDirectory
+  - search
+  - agent
+agents:
+  - spec
+  - tdd-backend
+  - tdd-frontend
+  - backend
+  - frontend
+  - documentation
+  - qa
+handoffs:
+  - label: "[1] Generar Spec"
+    agent: spec
+    prompt: Genera la spec técnica para el feature solicitado. Guarda en .github/specs/ con status DRAFT.
+    send: true
+  - label: "[2A] Implementar Backend (paralelo)"
+    agent: backend
+    prompt: Usa la spec aprobada en .github/specs/ para implementar el backend. Trabaja en paralelo con frontend.
+    send: false
+  - label: "[2B] Implementar Frontend (paralelo)"
+    agent: frontend
+    prompt: Usa la spec aprobada en .github/specs/ para implementar el frontend. Trabaja en paralelo con backend.
+    send: false
+  - label: "[3A] Tests Backend (paralelo)"
+    agent: tdd-backend
+    prompt: Genera las pruebas de backend para el feature implementado. Trabaja en paralelo con tdd-frontend.
+    send: false
+  - label: "[3B] Tests Frontend (paralelo)"
+    agent: tdd-frontend
+    prompt: Genera las pruebas de frontend para el feature implementado. Trabaja en paralelo con tdd-backend.
+    send: false
+  - label: "[4] Escenarios QA"
+    agent: qa
+    prompt: Genera los escenarios Gherkin y análisis de riesgos para el feature.
+    send: false
+  - label: "[5] Documentación (opcional)"
+    agent: documentation
+    prompt: Genera la documentación técnica del feature implementado.
+    send: false
 ---
 
 # @orchestrator — Pipeline Orchestration Agent
@@ -339,13 +401,25 @@ Verify:
 function tddBackendAgent(name) {
   return `---
 name: tdd-backend
-description: >
-  Writes backend tests for ${name} before any implementation exists.
-  Follows TDD Red phase: tests must fail initially.
+description: "Writes backend tests for ${name} before any implementation exists. TDD Red phase: tests must fail initially."
+model: Claude Sonnet 4.6 (copilot)
 tools:
-  - fileSystem
-  - codebase
-  - terminalLastCommand
+  - read/readFile
+  - edit/createFile
+  - edit/editFiles
+  - search/listDirectory
+  - search
+  - execute/runInTerminal
+agents: []
+handoffs:
+  - label: Implementar Backend
+    agent: backend
+    prompt: Los tests de backend están listos y fallan correctamente (Red phase). Ahora implementa el código para hacerlos pasar.
+    send: false
+  - label: Volver al Orchestrator
+    agent: orchestrator
+    prompt: Tests de backend generados. Revisa el estado del pipeline ASDD.
+    send: false
 ---
 
 # @tdd-backend — Backend TDD Agent (Red Phase)
@@ -399,13 +473,25 @@ describe('<FeatureName>', () => {
 function tddFrontendAgent(name) {
   return `---
 name: tdd-frontend
-description: >
-  Writes frontend/UI tests for ${name} before any implementation exists.
-  Follows TDD Red phase: tests must fail initially.
+description: "Writes frontend/UI tests for ${name} before any implementation exists. TDD Red phase: tests must fail initially."
+model: Claude Sonnet 4.6 (copilot)
 tools:
-  - fileSystem
-  - codebase
-  - terminalLastCommand
+  - read/readFile
+  - edit/createFile
+  - edit/editFiles
+  - search/listDirectory
+  - search
+  - execute/runInTerminal
+agents: []
+handoffs:
+  - label: Implementar Frontend
+    agent: frontend
+    prompt: Los tests de frontend están listos y fallan correctamente (Red phase). Ahora implementa el código para hacerlos pasar.
+    send: false
+  - label: Volver al Orchestrator
+    agent: orchestrator
+    prompt: Tests de frontend generados. Revisa el estado del pipeline ASDD.
+    send: false
 ---
 
 # @tdd-frontend — Frontend TDD Agent (Red Phase)
@@ -449,13 +535,29 @@ Write component and integration tests based on the feature spec before any UI is
 function backendAgent(name) {
   return `---
 name: backend
-description: >
-  Implements backend code for ${name} to make failing tests pass.
-  Follows TDD Green phase and Clean Architecture principles.
+description: "Implements backend code for ${name} to make failing tests pass. TDD Green phase — Clean Architecture."
+model: Claude Sonnet 4.6 (copilot)
 tools:
-  - fileSystem
-  - codebase
-  - terminalLastCommand
+  - read/readFile
+  - edit/createFile
+  - edit/editFiles
+  - search/listDirectory
+  - search
+  - execute/runInTerminal
+agents: []
+handoffs:
+  - label: Implementar Frontend
+    agent: frontend
+    prompt: El backend para esta spec ya está implementado. Implementa el frontend correspondiente en paralelo.
+    send: false
+  - label: Generar Tests de Backend
+    agent: tdd-backend
+    prompt: El backend está implementado. Genera las pruebas unitarias para validar todas las capas.
+    send: false
+  - label: Volver al Orchestrator
+    agent: orchestrator
+    prompt: Backend implementado. Revisa el estado del pipeline ASDD.
+    send: false
 ---
 
 # @backend — Backend Implementation Agent (Green Phase)
@@ -508,13 +610,29 @@ backend tests pass. Follow the architecture and patterns already established in 
 function frontendAgent(name) {
   return `---
 name: frontend
-description: >
-  Implements frontend/UI code for ${name} to make failing tests pass.
-  Follows TDD Green phase and existing component patterns.
+description: "Implements frontend/UI code for ${name} to make failing tests pass. TDD Green phase — follows existing component patterns."
+model: Claude Sonnet 4.6 (copilot)
 tools:
-  - fileSystem
-  - codebase
-  - terminalLastCommand
+  - read/readFile
+  - edit/createFile
+  - edit/editFiles
+  - search/listDirectory
+  - search
+  - execute/runInTerminal
+agents: []
+handoffs:
+  - label: Implementar Backend
+    agent: backend
+    prompt: El frontend para esta spec ya está implementado. Implementa el backend correspondiente en paralelo.
+    send: false
+  - label: Generar Tests de Frontend
+    agent: tdd-frontend
+    prompt: El frontend está implementado. Genera las pruebas de componentes para validar el comportamiento.
+    send: false
+  - label: Volver al Orchestrator
+    agent: orchestrator
+    prompt: Frontend implementado. Revisa el estado del pipeline ASDD.
+    send: false
 ---
 
 # @frontend — Frontend Implementation Agent (Green Phase)
@@ -554,12 +672,20 @@ failing frontend tests pass. Follow the component patterns already established i
 function documentationAgent(name) {
   return `---
 name: documentation
-description: >
-  Generates documentation for ${name} features: README updates,
-  ADR entries, API docs, and CHANGELOG entries.
+description: "Generates documentation for ${name} features: README updates, ADR entries, API docs, and CHANGELOG entries. Run after implementation."
+model: Gemini 2.0 Flash (copilot)
 tools:
-  - fileSystem
-  - codebase
+  - read/readFile
+  - edit/createFile
+  - edit/editFiles
+  - search/listDirectory
+  - search
+agents: []
+handoffs:
+  - label: Volver al Orchestrator
+    agent: orchestrator
+    prompt: Documentación técnica generada. Revisa el estado del flujo ASDD.
+    send: false
 ---
 
 # @documentation — Documentation Agent
@@ -604,12 +730,20 @@ following the pattern already used in this project.
 function qaAgent(name) {
   return `---
 name: qa
-description: >
-  Generates Gherkin acceptance scenarios for ${name} features
-  based on the approved spec's acceptance criteria.
+description: "Generates Gherkin acceptance scenarios and risk analysis for ${name} features based on approved spec. Run after implementation."
+model: Claude Sonnet 4.6 (copilot)
 tools:
-  - fileSystem
-  - codebase
+  - read/readFile
+  - edit/createFile
+  - edit/editFiles
+  - search/listDirectory
+  - search
+agents: []
+handoffs:
+  - label: Volver al Orchestrator
+    agent: orchestrator
+    prompt: QA completado. Escenarios y análisis de riesgos disponibles. Revisa el estado del flujo ASDD.
+    send: false
 ---
 
 # @qa — QA Scenarios Agent
@@ -1392,6 +1526,344 @@ chore/description     — maintenance
 - At least one code review approval required
 - Squash commits when merging feature branches
 - Delete branch after merge
+`
+}
+
+// ---------------------------------------------------------------------------
+// ASDD Skills (slash commands)
+// ---------------------------------------------------------------------------
+
+function skillAsddOrchestrate() {
+  return `---
+name: asdd-orchestrate
+description: "Orchestrates the full ASDD pipeline. Phase 1 (Spec) → Phase 2 (Backend ∥ Frontend) → Phase 3 (Tests ∥) → Phase 4 (QA)."
+argument-hint: "<feature-name> | status"
+---
+
+# ASDD Orchestrate
+
+## Pipeline
+
+\`\`\`
+[PHASE 1 — SEQUENTIAL]
+  spec → .github/specs/<feature>.spec.md  (DRAFT → APPROVED)
+
+[PHASE 2 — PARALLEL ∥]
+  backend  ∥  frontend
+
+[PHASE 3 — PARALLEL ∥]
+  tdd-backend  ∥  tdd-frontend
+
+[PHASE 4 — SEQUENTIAL]
+  qa → Gherkin scenarios + risk analysis
+\`\`\`
+
+## Process
+1. Look for \`.github/specs/<feature>.spec.md\`
+   - Does not exist → invoke \`/generate-spec\` and wait
+   - \`DRAFT\` → ask user to review and approve
+   - \`APPROVED\` → update to \`IN_PROGRESS\` and continue
+2. Launch Phase 2 in parallel (@backend + @frontend)
+3. When Phase 2 completes → launch Phase 3 in parallel (@tdd-backend + @tdd-frontend)
+4. When Phase 3 completes → launch Phase 4 (@qa)
+5. Update spec to \`IMPLEMENTED\` and report final status
+
+## Status command
+When called with \`status\`: list all specs in \`.github/specs/\` with their current status and next pending action.
+
+## Rules
+- No spec with \`APPROVED\` status → no code. No exceptions.
+- Do not implement directly — only coordinate and delegate.
+- If a phase fails → stop the pipeline and report to user with context.
+- Phase 5 (documentation) only if explicitly requested.
+`
+}
+
+function skillGenerateSpec() {
+  return `---
+name: generate-spec
+description: "Generates a technical ASDD spec in .github/specs/<feature>.spec.md. Required before any implementation."
+argument-hint: "<feature-name>: <requirement description>"
+---
+
+# Generate Spec
+
+## Definition of Ready — validate before generating
+
+A story can generate a spec only if:
+
+- [ ] Clear feature name and one-sentence description provided
+- [ ] At least one user story (As a / I want / So that)
+- [ ] Acceptance criteria in Given/When/Then format
+- [ ] API contract defined if applicable (method, route, request, response, HTTP codes)
+- [ ] No ambiguity in scope — open questions are listed
+
+If requirements do not meet DoR → list pending questions before generating.
+
+## Process
+
+1. Check for existing requirement in \`.github/requirements/<feature>.md\` (use it if exists)
+2. Read stack: \`.github/instructions/backend.instructions.md\`, \`.github/instructions/frontend.instructions.md\`
+3. Explore existing code — do not duplicate existing models or endpoints
+4. Validate DoR (above) — list questions if there are ambiguities
+5. Use the spec template from \`.github/specs/SPEC-TEMPLATE.md\` EXACTLY
+6. Save to \`.github/specs/<feature-name-kebab-case>.spec.md\`
+
+## Required frontmatter
+
+\`\`\`yaml
+---
+id: FEAT-XXX
+title: "<Feature title>"
+status: draft
+created: YYYY-MM-DD
+author: spec-generator
+---
+\`\`\`
+
+## Required sections
+
+- \`## 1. Context & Motivation\` — why this feature exists
+- \`## 2. Goals\` — measurable objectives
+- \`## 3. Acceptance Criteria\` — Given/When/Then format
+- \`## 4. Data Model\` — entities and relationships
+- \`## 5. API Contract\` — endpoints with request/response/codes
+- \`## 6. Non-Functional Requirements\` — performance, security, accessibility
+
+## Restrictions
+
+- Read and create only. Do not modify existing code.
+- Status always \`draft\`. User approves before implementation.
+`
+}
+
+function skillImplementBackend() {
+  return `---
+name: implement-backend
+description: "Implements a complete backend feature. Requires spec with status APPROVED in .github/specs/."
+argument-hint: "<feature-name>"
+---
+
+# Implement Backend
+
+## Prerequisites
+1. Read spec: \`.github/specs/<feature>.spec.md\` — sections: API contract, data model
+2. Read architecture: \`.github/instructions/backend.instructions.md\`
+3. Read coding standards: \`.github/copilot-instructions.md\`
+
+## Implementation order
+\`\`\`
+Domain → Application → Infrastructure → API
+\`\`\`
+
+| Layer | Responsibility | Forbidden |
+|-------|---------------|-----------|
+| **Domain** | Entities, value objects, business rules, domain interfaces | Framework imports |
+| **Application** | Use-cases, DTOs, input validation | Direct DB queries |
+| **Infrastructure** | Repository implementations, migrations, adapters | Business logic |
+| **API** | Route handlers, DI wiring, request/response mapping | Business logic |
+
+## Rules
+- Make tests pass — NEVER modify tests to pass
+- Follow naming and patterns from existing code exactly
+- Validate all inputs at API boundaries (schema validation)
+- Apply OWASP Top 10: parameterized queries, sanitized inputs, auth enforcement
+- Reference spec ID in file headers: \`// Spec: FEAT-XXX\`
+
+## Restrictions
+- Only backend directory. Do not touch frontend.
+- Do not generate tests (responsibility of @tdd-backend).
+`
+}
+
+function skillImplementFrontend() {
+  return `---
+name: implement-frontend
+description: "Implements a complete frontend feature. Requires spec with status APPROVED in .github/specs/."
+argument-hint: "<feature-name>"
+---
+
+# Implement Frontend
+
+## Prerequisites
+1. Read spec: \`.github/specs/<feature>.spec.md\` — sections: UI requirements, acceptance criteria
+2. Read conventions: \`.github/instructions/frontend.instructions.md\`
+3. Read coding standards: \`.github/copilot-instructions.md\`
+
+## Implementation checklist
+- [ ] Components match spec UI requirements exactly
+- [ ] Loading, error, and empty states handled for all async operations
+- [ ] Form validation with inline error messages
+- [ ] Accessibility: semantic HTML, ARIA attributes, keyboard navigation
+- [ ] Responsive layout at mobile and desktop breakpoints
+- [ ] API calls go through the project's existing data-fetching layer
+- [ ] No business logic in components — extract to hooks or services
+- [ ] No inline styles — use project's styling system
+
+## Rules
+- Make tests pass — NEVER modify tests to pass
+- Follow component structure from existing files exactly
+- Single responsibility: one component does one thing
+- Reference spec ID in file headers: \`// Spec: FEAT-XXX\`
+
+## Restrictions
+- Only frontend directory. Do not touch backend.
+- Do not generate tests (responsibility of @tdd-frontend).
+`
+}
+
+function skillUnitTesting() {
+  return `---
+name: unit-testing
+description: "Generates the full unit test suite for a feature. Run after spec is APPROVED, before or after implementation."
+argument-hint: "<feature-name>"
+---
+
+# Unit Testing
+
+## Process
+1. Read spec: \`.github/specs/<feature>.spec.md\` — acceptance criteria and edge cases
+2. Read testing conventions: \`.github/instructions/testing.instructions.md\`
+3. Read existing test files to match patterns (naming, structure, helpers, mocks)
+4. Generate backend and frontend test suites
+
+## Backend tests to generate
+
+| Layer | File pattern | Content |
+|-------|-------------|---------|
+| API/Routes | \`tests/routes/test_<feature>_router\` | Integration: HTTP client, auth headers |
+| Services | \`tests/services/test_<feature>_service\` | Unit: mock all repos |
+| Repositories | \`tests/repositories/test_<feature>_repo\` | Unit: mock DB client |
+
+**Minimum coverage per layer:**
+- Happy path (HTTP 200/201)
+- Validation error (HTTP 400/422)
+- Unauthorized (HTTP 401)
+- Not found (HTTP 404)
+
+## Frontend tests to generate
+
+| Type | File pattern | Content |
+|------|-------------|---------|
+| Components | \`__tests__/<Component>.test\` | Renders, user events, states |
+| Hooks | \`__tests__/<hook>.test\` | State transitions, mock API |
+| Integration | \`__tests__/<feature>.integration.test\` | Full user flow |
+
+## Rules
+- Tests must fail before implementation (Red phase) — verify with test runner
+- Mock all external dependencies at system boundaries
+- Use business-readable test names, not implementation details
+- Add spec ID at the top of each test file: \`// Spec: FEAT-XXX\`
+- NEVER modify existing passing tests
+`
+}
+
+function skillGherkinCaseGenerator() {
+  return `---
+name: gherkin-case-generator
+description: "Maps critical flows, generates Gherkin scenarios, and defines test data from the spec. Output in docs/output/qa/."
+argument-hint: "<feature-name>"
+---
+
+# Gherkin Case Generator
+
+## Process
+1. Read spec: \`.github/specs/<feature>.spec.md\` — acceptance criteria and business rules
+2. Identify critical flows (happy paths + error paths + edge cases)
+3. Generate one Gherkin scenario per acceptance criterion
+4. Define synthetic test data per scenario
+5. Save to \`docs/output/qa/<feature>-gherkin.md\`
+
+## Critical flows — identify first
+
+| Type | Impact | Tag |
+|------|--------|-----|
+| Main happy path | High | \`@smoke @critical\` |
+| Input validation | Medium | \`@error-path\` |
+| Authorization/auth | High | \`@smoke @security\` |
+| Edge case | Variable | \`@edge-case\` |
+
+## Gherkin format
+
+\`\`\`gherkin
+Feature: [feature in business language]
+  As a [actor]
+  I want to [goal]
+  So that [benefit]
+
+  @smoke @critical
+  Scenario: [successful flow]
+    Given [precondition]
+    When [user action]
+    Then [verifiable result]
+
+  @error-path
+  Scenario: [expected error]
+    Given [precondition]
+    When [invalid action]
+    Then [appropriate error message is shown]
+    And [the operation is NOT performed]
+\`\`\`
+
+## Rules
+- Business language only — no API routes or technical IDs in Gherkin
+- Scenarios must be independent (no shared mutable state)
+- One scenario per acceptance criterion at minimum
+- Include a test data table for scenarios with multiple inputs
+`
+}
+
+function skillRiskIdentifier() {
+  return `---
+name: risk-identifier
+description: "Classifies risks for a feature using the ASD risk rule (High/Medium/Low). Output in docs/output/qa/."
+argument-hint: "<feature-name>"
+---
+
+# Risk Identifier
+
+## Process
+1. Read spec: \`.github/specs/<feature>.spec.md\`
+2. Read implemented code for the feature
+3. Identify all risk vectors
+4. Classify each risk by probability × impact
+5. Save to \`docs/output/qa/<feature>-risks.md\`
+
+## ASD Risk Rule
+
+\`\`\`
+Risk Level = Probability × Impact
+
+HIGH   = likely to occur AND significant damage if it does
+MEDIUM = either likely OR significant impact, not both
+LOW    = unlikely AND low damage
+\`\`\`
+
+## Risk vectors to evaluate
+
+| Vector | Examples |
+|--------|---------|
+| **Security** | Auth bypass, injection, data exposure, IDOR |
+| **Data integrity** | Missing validation, race conditions, partial updates |
+| **Performance** | N+1 queries, missing indexes, unbounded results |
+| **Availability** | No timeout on external calls, cascading failures |
+| **User experience** | Missing error states, inaccessible UI, confusing flows |
+| **Compliance** | PII handling, audit trail, retention policies |
+
+## Output format
+
+\`\`\`markdown
+## Risk Matrix — <Feature>
+
+| ID | Risk | Vector | Probability | Impact | Level | Mitigation |
+|----|------|--------|-------------|--------|-------|-----------|
+| R-01 | [description] | Security | High | High | **HIGH** | [action] |
+\`\`\`
+
+## Rules
+- Every HIGH risk must have a concrete mitigation action
+- Do not mark risks as LOW without justification
+- If a risk is already mitigated in code, note it as "Mitigated: [how]"
 `
 }
 

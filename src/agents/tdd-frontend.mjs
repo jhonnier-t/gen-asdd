@@ -52,22 +52,21 @@ It must:
 Test frameworks for this stack (${stack}):
 Choose from: Vitest + Testing Library, Jest + RTL, Playwright, Cypress, Storybook.
 
-Include YAML frontmatter with: description, tools (fileSystem, codebase).
-`,
-      },
-    ],
-  })
-
-  const promptContent = await chat({
-    token,
-    model,
-    messages: [
-      { role: 'system', content: SYSTEM },
-      {
-        role: 'user',
-        content: `${contextBlock}
-
-Generate \`prompts/03-tdd-frontend.prompt.md\` — a reusable TDD prompt for frontend tests.
+Include YAML frontmatter:
+  name: tdd-frontend
+  description: (keyword-rich: frontend tests, TDD Red, component testing, test-first)
+  model: Claude Sonnet 4.6 (copilot)
+  tools:
+    - read/readFile
+    - edit/createFile
+    - edit/editFiles
+    - search/listDirectory
+    - search
+    - execute/runInTerminal
+  agents: []
+  handoffs:
+    - label: "Implementar Frontend" → agent: frontend, prompt: "Los tests de frontend están listos y fallan (Red phase). Implementa el código para hacerlos pasar.", send: false
+    - label: "Volver al Orchestrator" → agent: orchestrator, send: false — a reusable TDD prompt for frontend tests.
 
 Architecture: ${detectedPatterns}
 
