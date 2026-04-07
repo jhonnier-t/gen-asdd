@@ -12,7 +12,7 @@ Output format: Pure markdown with YAML frontmatter. No extra prose.`
 /**
  * Generates backend TDD agent file.
  * @param {object} params
- * @returns {Promise<{ 'agents/tdd-backend.agent.md': string, 'prompts/02-tdd-backend.prompt.md': string }>}
+ * @returns {Promise<{ 'agents/tdd-backend.agent.md': string, 'prompts/tdd-backend.prompt.md': string }>}
  */
 export async function runTddBackendAgent({ token, model, ctx }) {
   const contextBlock = buildContextBlock(ctx)
@@ -113,6 +113,6 @@ Restricciones: referencia Spec ID en encabezado, no modificar pruebas existentes
 
   return {
     'agents/tdd-backend.agent.md': agentContent,
-    'prompts/02-tdd-backend.prompt.md': promptContent,
+    'prompts/tdd-backend.prompt.md': promptContent,
   }
 }

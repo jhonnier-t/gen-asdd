@@ -94,7 +94,7 @@ Restricciones: solo artefactos QA - NO modificar codigo ni specs; escenarios ind
 
   return {
     'agents/qa.agent.md': agentContent,
-    'prompts/07-qa-scenarios.prompt.md': promptContent,
+    'prompts/qa-scenarios.prompt.md': promptContent,
   }
 }
 

@@ -13,7 +13,7 @@ Output format: Pure markdown with YAML frontmatter. No extra prose.`
 /**
  * Generates backend implementation agent file.
  * @param {object} params
- * @returns {Promise<{ 'agents/backend.agent.md': string, 'prompts/04-backend.prompt.md': string }>}
+ * @returns {Promise<{ 'agents/backend.agent.md': string, 'prompts/backend.prompt.md': string }>}
  */
 export async function runBackendAgent({ token, model, ctx }) {
   const contextBlock = buildContextBlock(ctx)
@@ -88,7 +88,7 @@ Include YAML frontmatter:
         role: 'user',
         content: `${contextBlock}
 
-Generate \`prompts/04-backend.prompt.md\` — a reusable prompt for backend implementation.
+Generate \`prompts/backend.prompt.md\` — a reusable prompt for backend implementation.
 
 Architecture: ${detectedPatterns}
 
@@ -131,6 +131,6 @@ Restricciones: seguir .github/instructions/backend.instructions.md, OWASP, refer
 
   return {
     'agents/backend.agent.md': agentContent,
-    'prompts/04-backend.prompt.md': promptContent,
+    'prompts/backend.prompt.md': promptContent,
   }
 }

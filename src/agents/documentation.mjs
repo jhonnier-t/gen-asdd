@@ -102,7 +102,7 @@ Restricciones: solo documentar - NO modificar codigo de implementacion
 
   return {
     'agents/documentation.agent.md': agentContent,
-    'prompts/06-documentation.prompt.md': promptContent,
+    'prompts/documentation.prompt.md': promptContent,
   }
 }
 

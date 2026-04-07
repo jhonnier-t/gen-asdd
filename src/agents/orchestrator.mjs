@@ -86,7 +86,7 @@ Include YAML frontmatter with:
         role: 'user',
         content: `${contextBlock}
 
-Generate \`prompts/00-orchestrate.prompt.md\` — the main ASDD orchestration prompt.
+Generate \`prompts/orchestrate.prompt.md\` — the main ASDD orchestration prompt.
 
 Architecture: ${detectedPatterns}
 
@@ -123,7 +123,7 @@ Body structure:
 
   return {
     'agents/orchestrator.agent.md': agentContent,
-    'prompts/00-orchestrate.prompt.md': promptContent,
+    'prompts/orchestrate.prompt.md': promptContent,
   }
 }
 

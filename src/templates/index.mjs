@@ -47,13 +47,13 @@ export function generateStaticAsddStructure(projectName, version) {
     'specs/SPEC-TEMPLATE.md': specTemplate(date),
 
     // Reusable prompt files
-    'prompts/00-orchestrate.prompt.md': promptOrchestrate(),
-    'prompts/02-tdd-backend.prompt.md': promptTddBackend(),
-    'prompts/03-tdd-frontend.prompt.md': promptTddFrontend(),
-    'prompts/04-backend.prompt.md': promptBackend(),
-    'prompts/05-frontend.prompt.md': promptFrontend(),
-    'prompts/06-documentation.prompt.md': promptDocumentation(),
-    'prompts/07-qa-scenarios.prompt.md': promptQaScenarios(),
+    'prompts/orchestrate.prompt.md': promptOrchestrate(),
+    'prompts/tdd-backend.prompt.md': promptTddBackend(),
+    'prompts/tdd-frontend.prompt.md': promptTddFrontend(),
+    'prompts/backend.prompt.md': promptBackend(),
+    'prompts/frontend.prompt.md': promptFrontend(),
+    'prompts/documentation.prompt.md': promptDocumentation(),
+    'prompts/qa-scenarios.prompt.md': promptQaScenarios(),
 
     // Copilot instruction files (path-scoped, auto-applied via applyTo)
     'instructions/general.instructions.md': instructionGeneral(name),

@@ -12,7 +12,7 @@ Output format: Pure markdown with YAML frontmatter. No extra prose.`
 /**
  * Generates frontend implementation agent file.
  * @param {object} params
- * @returns {Promise<{ 'agents/frontend.agent.md': string, 'prompts/05-frontend.prompt.md': string }>}
+ * @returns {Promise<{ 'agents/frontend.agent.md': string, 'prompts/frontend.prompt.md': string }>}
  */
 export async function runFrontendAgent({ token, model, ctx }) {
   const contextBlock = buildContextBlock(ctx)
@@ -87,7 +87,7 @@ Include YAML frontmatter:
         role: 'user',
         content: `${contextBlock}
 
-Generate \`prompts/05-frontend.prompt.md\` — a reusable prompt for frontend implementation.
+Generate \`prompts/frontend.prompt.md\` — a reusable prompt for frontend implementation.
 
 Architecture: ${detectedPatterns}
 
@@ -130,6 +130,6 @@ Restricciones: seguir .github/instructions/frontend.instructions.md, no logica d
 
   return {
     'agents/frontend.agent.md': agentContent,
-    'prompts/05-frontend.prompt.md': promptContent,
+    'prompts/frontend.prompt.md': promptContent,
   }
 }
