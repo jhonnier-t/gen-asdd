@@ -248,7 +248,7 @@ Tokens starting with `github_pat_` (fine-grained format) are also accepted.
 - Never logged, cached, or written to disk
 - All token handling is in-process and in-memory only
 - Generated files never contain or reference your token
-- `asdd-gen` is open-source: https://github.com/jhonnier-t/gen-asdd
+- `asdd-gen` is open-source: https://github.com/jhonnier-t/asdd-gen
 
 ---
 
