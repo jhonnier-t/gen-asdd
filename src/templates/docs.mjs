@@ -1,4 +1,4 @@
-export { copilotInstructions, specTemplate, agentsCatalog, changelog }
+export { copilotInstructions, specTemplate, agentsCatalog }
 
 // copilot-instructions, spec template, agents catalog, changelog
 
@@ -336,31 +336,5 @@ This file describes all Copilot agents installed by ASDD. Invoke them in GitHub 
 
 4. Parallel: @documentation + @qa
 \`\`\`
-`
-}
-
-function changelog(name, date) {
-  return `# Changelog — ${name}
-
-All notable changes to this project will be documented in this file.
-
-Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
-Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
-
----
-
-## [Unreleased]
-
-### Added
-
-- ASDD infrastructure generated on ${date}
-
----
-
-## [0.1.0] — ${date}
-
-### Added
-
-- Initial project setup
 `
 }

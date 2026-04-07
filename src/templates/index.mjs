@@ -13,7 +13,7 @@
  *   ./configs.mjs      — tooling configuration files
  */
 
-import { copilotInstructions, specTemplate, agentsCatalog, changelog } from './docs.mjs'
+import { copilotInstructions, specTemplate, agentsCatalog } from './docs.mjs'
 import { specAgent, orchestratorAgent, tddBackendAgent, tddFrontendAgent, backendAgent, frontendAgent, documentationAgent, qaAgent } from './agents.mjs'
 import { promptOrchestrate, promptTddBackend, promptTddFrontend, promptBackend, promptFrontend, promptDocumentation, promptQaScenarios } from './prompts.mjs'
 import { instructionGeneral, instructionSpec, instructionBackend, instructionFrontend, instructionTesting, instructionSecurity, instructionGit } from './instructions.mjs'
@@ -78,6 +78,5 @@ export function generateStaticAsddStructure(projectName, version) {
 
     // Root documentation
     'ROOT:AGENTS.md': agentsCatalog(name),
-    'ROOT:CHANGELOG.md': changelog(name, date),
   }
 }
