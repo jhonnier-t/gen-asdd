@@ -18,7 +18,7 @@ import { specAgent, orchestratorAgent, tddBackendAgent, tddFrontendAgent, backen
 import { promptOrchestrate, promptTddBackend, promptTddFrontend, promptBackend, promptFrontend, promptDocumentation, promptQaScenarios } from './prompts.mjs'
 import { instructionGeneral, instructionSpec, instructionBackend, instructionFrontend, instructionTesting, instructionSecurity, instructionGit } from './instructions.mjs'
 import { skillAsddOrchestrate, skillGenerateSpec, skillImplementBackend, skillImplementFrontend, skillUnitTesting, skillGherkinCaseGenerator, skillRiskIdentifier } from './skills.mjs'
-import { commitlintConfig, lintStagedConfig, vscodeSettings, vscodeExtensions } from './configs.mjs'
+import { vscodeExtensions } from './configs.mjs'
 
 /**
  * @param {string} projectName
@@ -73,12 +73,7 @@ export function generateStaticAsddStructure(projectName, version) {
     'skills/gherkin-case-generator/SKILL.md': skillGherkinCaseGenerator(),
     'skills/risk-identifier/SKILL.md': skillRiskIdentifier(),
 
-    // Commit tooling (root-level)
-    'ROOT:commitlint.config.mjs': commitlintConfig(),
-    'ROOT:lint-staged.config.mjs': lintStagedConfig(),
-
-    // VS Code configuration
-    'ROOT:.vscode/settings.json': vscodeSettings(),
+    // VS Code extension recommendations (additive — does not overwrite user settings)
     'ROOT:.vscode/extensions.json': vscodeExtensions(),
 
     // Root documentation
