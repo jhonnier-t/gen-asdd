@@ -32,16 +32,3 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Generated files (asdd-gen output examples)
-.github/copilot-instructions.md
-.github/agents/
-.github/prompts/
-.github/instructions/
-.github/specs/
-.husky/
-.vscode/settings.json
-.vscode/extensions.json
-commitlint.config.mjs
-lint-staged.config.mjs
-AGENTS.md
-CHANGELOG.md
